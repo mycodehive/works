@@ -65,14 +65,14 @@
       <thead><tr><th>항목</th><th>contractsubject</th><th>joinlist</th><th>ingcontract</th><th>currentemp</th><th>비고</th></tr></thead>
       <tbody>
         <tr><td>진행 과제 필터</td><td><b>N열</b></td><td><b>N열</b></td><td><b>F열</b></td><td>—</td><td><span class="tag">진행중 과제만</span></td></tr>
-        <tr><td>재직자 필터</td><td><b>G열</b></td><td><b>B열</b></td><td>—</td><td><b>B열</b></td><td><span class="tag">재직자만</span></td></tr>
+        <tr><td>재직자 필터</td><td><b>G열</b></td><td><b>B열</b></td><td>—</td><td><b>B열</b></td><td><span class="tag">재직자만 · 위촉연구원 제외</span></td></tr>
         <tr><td>직번</td><td><b>G열</b></td><td><b>B열</b></td><td>—</td><td><b>B열</b></td><td><span class="tag">정확 일치</span></td></tr>
         <tr><td>과제번호</td><td><b>N열</b></td><td><b>N열</b></td><td><b>F열</b></td><td>—</td><td><span class="tag">정확 일치</span></td></tr>
         <tr><td>지급년도</td><td><b>X열</b></td><td><b>AB열</b></td><td>—</td><td>—</td><td><span class="tag">정확 일치</span></td></tr>
         <tr><td>월별 금액</td><td><b>Z, AB, AD, AF, AH, AJ, AL, AN, AP, AR, AT, AV</b></td><td><b>AD, AG, AJ, AM, AP, AS, AV, AY, BB, BE, BH, BK</b></td><td>—</td><td>—</td><td><span class="tag">금액 일치</span></td></tr>
       </tbody>
     </table>
-    <p class="hint">진행중 과제와 재직자를 먼저 선별한 뒤, contractsubject는 직번(G열)·과제번호(N열)·지급년도(X열)를 키로 병합합니다. 같은 키의 동일 월에 지급액이 여러 건이면 지급액 0원 행은 신청번호 비교에서 제외하고, 0원이 아닌 행 중 신청번호(D열)가 가장 큰 행의 해당 월 지급액을 최종금액으로 사용합니다. 월별 지급액은 Z·AB·AD·AF·AH·AJ·AL·AN·AP·AR·AT·AV 열만 사용하며, joinlist의 월별 예정액은 AD·AG·AJ·AM·AP·AS·AV·AY·BB·BE·BH·BK 열만 사용합니다.</p>
+    <p class="hint">진행중 과제와 재직자를 먼저 선별하되 currentemp에서 값이 "위촉연구원"인 행은 비교대상에서 제외합니다. contractsubject는 직번(G열)·과제번호(N열)·지급년도(X열)를 키로 병합합니다. 같은 키의 동일 월에 지급액이 여러 건이면 지급액 0원 행은 신청번호 비교에서 제외하고, 0원이 아닌 행 중 신청번호(D열)가 가장 큰 행의 해당 월 지급액을 최종금액으로 사용합니다. 월별 지급액은 Z·AB·AD·AF·AH·AJ·AL·AN·AP·AR·AT·AV 열만 사용하며, joinlist의 월별 예정액은 AD·AG·AJ·AM·AP·AS·AV·AY·BB·BE·BH·BK 열만 사용합니다. 검증 결과에서는 계약관리 지급액과 참여인력 예정액이 모두 0원인 행을 제외합니다.</p>
   </section>
 
   <section class="upload-grid">
@@ -143,23 +143,12 @@ function headerText(rows,c){
   return [rows[0]?.[c],rows[1]?.[c],rows[2]?.[c]].map(norm).join(" ");
 }
 function detectMonthColumns(rows,type){
-  // contractsubject는 지급액 고정 열만 사용합니다.
-  // 1~12월 지급액: Z, AB, AD, AF, AH, AJ, AL, AN, AP, AR, AT, AV
-  if(type==="contract"){
-    return [25,27,29,31,33,35,37,39,41,43,45,47];
-  }
-
-  // joinlist도 헤더명으로 추정하지 않고 월별 예정액 고정 열만 사용합니다.
-  // 1~12월 예정액: AD, AG, AJ, AM, AP, AS, AV, AY, BB, BE, BH, BK
-  if(type==="join"){
-    return [29,32,35,38,41,44,47,50,53,56,59,62];
-  }
-
+  if(type==="contract") return [25,27,29,31,33,35,37,39,41,43,45,47];
+  if(type==="join") return [29,32,35,38,41,44,47,50,53,56,59,62];
   return [];
 }
 
 function dataStart(rows){
-  // 첫 3행 중 헤더가 있을 수 있으므로, 실제 데이터가 시작되는 첫 행을 유연하게 판단
   for(let r=0;r<Math.min(8,rows.length);r++){
     const filled=(rows[r]||[]).filter(v=>norm(v)!=="").length;
     if(r>=1 && filled>=5) return r+1;
@@ -207,8 +196,6 @@ function compareApplication(a,b){
 
 function buildAgg(rows,type,monthCols){
   const cfg=CFG[type], map=new Map();
-
-  // contractsubject: 키별 병합 + 월별 중복 시 신청번호가 큰 행 우선
   if(type==="contract"){
     for(const row of rows){
       const emp=norm(row[cfg.emp]), project=norm(row[cfg.project]), year=norm(row[cfg.year]);
@@ -218,38 +205,20 @@ function buildAgg(rows,type,monthCols){
       const obj=map.get(k);
       if(!obj.name) obj.name=norm(row[cfg.name]);
       const app=norm(row[cfg.app]);
-
       for(let m=0;m<12;m++){
         const raw=row[monthCols[m]];
-        if(norm(raw)==="") continue; // 해당 월에 실제 데이터가 있는 행만 후보
+        if(norm(raw)==="") continue;
         obj.monthCandidates[m].push({app,amount:num(raw)});
       }
     }
-
     for(const obj of map.values()){
       obj.months=obj.monthCandidates.map(cands=>{
         if(!cands.length) return 0;
-
-        // 지급액이 0원인 행은 신청번호 우선순위 비교 대상에서 제외합니다.
-        // 예: 신청번호 202603120000001 = 3,415,500원,
-        //     신청번호 202608190000022 = 0원인 경우
-        //     0원 행은 제외되고 최종금액은 3,415,500원이 됩니다.
         const nonZeroCandidates=cands.filter(c=>Math.abs(c.amount)>0.000001);
         if(!nonZeroCandidates.length) return 0;
-
         let maxApp=nonZeroCandidates[0].app;
-        for(const c of nonZeroCandidates){
-          if(compareApplication(c.app,maxApp)>0) maxApp=c.app;
-        }
-
-        // 0원이 아닌 후보 중 신청번호가 가장 큰 행의 월별 지급액을 최종금액으로 사용합니다.
-        // 동일 신청번호에 같은 금액이 중복되면 1회만 반영하고,
-        // 동일 신청번호에 서로 다른 지급액이 있으면 합산합니다.
-        const values=new Set(
-          nonZeroCandidates
-            .filter(c=>compareApplication(c.app,maxApp)===0)
-            .map(c=>c.amount)
-        );
+        for(const c of nonZeroCandidates){if(compareApplication(c.app,maxApp)>0) maxApp=c.app;}
+        const values=new Set(nonZeroCandidates.filter(c=>compareApplication(c.app,maxApp)===0).map(c=>c.amount));
         return [...values].reduce((a,b)=>a+b,0);
       });
       delete obj.monthCandidates;
@@ -257,7 +226,6 @@ function buildAgg(rows,type,monthCols){
     return map;
   }
 
-  // joinlist: 기존 방식 유지 (같은 키/월의 같은 예정액은 1회, 서로 다르면 합산)
   for(const row of rows){
     const emp=norm(row[cfg.emp]), project=norm(row[cfg.project]), year=norm(row[cfg.year]);
     if(!emp||!project||!year) continue;
@@ -317,13 +285,15 @@ document.getElementById("runBtn").addEventListener("click",async()=>{
     for(let r=dataStart(ingRows);r<ingRows.length;r++){
       const p=norm((ingRows[r]||[])[CFG.ing.project]); if(p) activeProjects.add(p);
     }
+
     const currentEmps=new Set();
     for(let r=dataStart(empRows);r<empRows.length;r++){
-      const e=norm((empRows[r]||[])[CFG.emp.emp]); if(e) currentEmps.add(e);
+      const row=empRows[r]||[];
+      if(row.some(v=>norm(v)==="위촉연구원")) continue;
+      const e=norm(row[CFG.emp.emp]);
+      if(e) currentEmps.add(e);
     }
 
-    // contractsubject는 신청번호 MAX 선별 없이,
-    // 진행중 과제 + 재직자 조건을 만족하는 모든 행을 키(G,N,X) 기준으로 병합합니다.
     const contractStart=dataStart(contractRows);
     const contractFinal=[];
     for(let r=contractStart;r<contractRows.length;r++){
@@ -338,7 +308,6 @@ document.getElementById("runBtn").addEventListener("click",async()=>{
 
     const cMonths=detectMonthColumns(contractRows,"contract");
     const jMonths=detectMonthColumns(joinRows,"join");
-
     const cMap=buildAgg(contractFinal,"contract",cMonths);
     const jMap=buildAgg(joinFinal,"join",jMonths);
 
@@ -348,12 +317,10 @@ document.getElementById("runBtn").addEventListener("click",async()=>{
       const c=cMap.get(k), j=jMap.get(k);
       if(c&&!j){
         for(let m=0;m<12;m++) if(c.months[m]!==0) results.push(statusRow("참여인력미등록",c,m+1,c.months[m],0));
-        if(c.months.every(v=>v===0)) results.push(statusRow("참여인력미등록",c,"",0,0));
         continue;
       }
       if(!c&&j){
         for(let m=0;m<12;m++) if(j.months[m]!==0) results.push(statusRow("계약정보누락",j,m+1,0,j.months[m]));
-        if(j.months.every(v=>v===0)) results.push(statusRow("계약정보누락",j,"",0,0));
         continue;
       }
       let hasDiff=false;
@@ -367,6 +334,12 @@ document.getElementById("runBtn").addEventListener("click",async()=>{
       }
       if(!hasDiff) ok++;
     }
+
+    results=results.filter(r=>
+      Math.abs(Number(r["계약관리 지급액"]||0))>0.000001 ||
+      Math.abs(Number(r["참여인력 예정액"]||0))>0.000001
+    );
+
     results.sort((a,b)=>
       String(a.직번).localeCompare(String(b.직번),"ko-KR",{numeric:true}) ||
       String(a.과제번호).localeCompare(String(b.과제번호),"ko-KR",{numeric:true}) ||
