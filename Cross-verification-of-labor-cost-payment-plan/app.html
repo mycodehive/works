@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>연구인력 월별 인건비 검증</title>
+<script src="./xlsx.full.min.js"></script>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f3f6f8;color:#24323f;font-family:Arial,"Noto Sans KR","Malgun Gothic",sans-serif}
+  .wrap{max-width:1240px;margin:0 auto;padding:20px}
+  .card{background:#fff;border:1px solid #dfe5ea;border-radius:9px;box-shadow:0 1px 2px rgba(0,0,0,.03);padding:18px;margin-bottom:16px}
+  .eyebrow{font-size:11px;font-weight:800;letter-spacing:1.4px;color:#d56a00;margin-bottom:6px}
+  h1,h2{margin:0 0 10px} h1{font-size:20px} h2{font-size:19px}
+  .muted{color:#8492a0;font-size:12px}
+  .rules{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
+  .rules th,.rules td{border:1px solid #dfe5ea;padding:10px 12px;text-align:left}
+  .rules th{background:#f7f9fb;font-weight:600}
+  .rules b{color:#c76700}
+  .tag{display:inline-block;padding:2px 8px;border:1px solid #dbe2e8;border-radius:14px;background:#f8fafb;font-size:11px}
+  .hint{font-size:12px;color:#7d8b99;margin:11px 0 0}
+  .upload-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+  .upload-card{min-width:0;background:#fff;border:1px solid #dfe5ea;border-radius:8px;padding:14px}
+  .upload-head{display:flex;gap:9px;align-items:center;margin-bottom:10px;min-width:0}
+  .xls{width:30px;height:30px;border-radius:6px;background:#159447;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex:0 0 auto}
+  .upload-title{font-weight:700;font-size:14px}
+  .upload-sub{font-size:11px;color:#8b98a4;margin-top:2px}
+  .drop{border:1px dashed #cfd7de;border-radius:6px;min-height:132px;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;background:#fbfcfd}
+  .drop .arrow{font-size:30px;color:#70859a;line-height:1}
+  .drop strong{display:block;font-size:13px;margin:7px 0 4px;color:#23313f}
+  .drop small{font-size:10px;color:#98a4af}
+  .pick{margin-top:10px;border:1px solid #d5dde4;border-radius:4px;background:white;padding:6px 12px;cursor:pointer;font-size:12px}
+  .file-status{margin-top:10px;border:1px solid #caead6;background:#f0fbf4;color:#168446;border-radius:5px;padding:7px 9px;font-size:11px;min-height:31px;min-width:0}
+  .filename{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .center{text-align:center;margin:16px 0}
+  .run{border:0;border-radius:5px;background:#5b6f80;color:#fff;font-weight:700;padding:13px 62px;font-size:14px;cursor:pointer}
+  .run:disabled{opacity:.45;cursor:not-allowed}
+  .results-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-end}
+  .actions{display:flex;gap:8px}
+  .btn{border:1px solid #d5dde4;background:#fff;border-radius:5px;padding:8px 12px;font-size:11px;cursor:pointer}
+  .stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:14px 0}
+  .stat{border:1px solid #dfe5ea;border-radius:7px;padding:12px;display:flex;align-items:center;gap:11px;min-width:0}
+  .stat .ico{width:34px;height:34px;border-radius:50%;background:#f2f5f7;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .stat .label{font-size:11px;color:#81909d}
+  .stat .num{font-size:21px;font-weight:800;color:#182534;margin-top:2px}
+  .table-wrap{overflow:auto;border:1px solid #dfe5ea;border-radius:6px}
+  table.result{width:100%;border-collapse:collapse;min-width:980px;font-size:11px}
+  .result th,.result td{border-bottom:1px solid #e7ebef;padding:9px 10px;white-space:nowrap}
+  .result th{background:#f7f9fb;text-align:left;color:#60707d;position:sticky;top:0}
+  .money{text-align:right;font-variant-numeric:tabular-nums}
+  .empty{text-align:center;color:#93a0ab;padding:34px!important}
+  .status-badge{padding:3px 7px;border-radius:11px;font-size:10px;border:1px solid #d8dfe5;background:#f8fafb}
+  .error{color:#b42318;background:#fff3f2;border:1px solid #f2c8c4;border-radius:6px;padding:10px 12px;margin-top:12px;font-size:12px;display:none}
+  @media(max-width:1000px){.upload-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:650px){.upload-grid{grid-template-columns:1fr}.results-head{display:block}.actions{margin-top:10px}.stats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section class="card">
+    <div class="eyebrow">COMPARISON RULES</div>
+    <h1>비교 기준</h1>
+    <table class="rules">
+      <thead><tr><th>항목</th><th>contractsubject</th><th>joinlist</th><th>ingcontract</th><th>currentemp</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>진행 과제 필터</td><td><b>N열</b></td><td><b>N열</b></td><td><b>F열</b></td><td>—</td><td><span class="tag">진행중 과제만</span></td></tr>
+        <tr><td>재직자 필터</td><td><b>G열</b></td><td><b>B열</b></td><td>—</td><td><b>B열</b></td><td><span class="tag">재직자만 · 위촉연구원 제외</span></td></tr>
+        <tr><td>직번</td><td><b>G열</b></td><td><b>B열</b></td><td>—</td><td><b>B열</b></td><td><span class="tag">정확 일치</span></td></tr>
+        <tr><td>과제번호</td><td><b>N열</b></td><td><b>N열</b></td><td><b>F열</b></td><td>—</td><td><span class="tag">정확 일치</span></td></tr>
+        <tr><td>과제 메타정보</td><td>—</td><td>—</td><td><b>H열 과제명 · O열 연구시작일자 · Q열 연구종료일자</b></td><td>—</td><td><span class="tag">F열 과제번호로 매칭</span></td></tr>
+        <tr><td>지급년도</td><td><b>X열</b></td><td><b>AB열</b></td><td>—</td><td>—</td><td><span class="tag">정확 일치</span></td></tr>
+        <tr><td>월별 금액</td><td><b>Z, AB, AD, AF, AH, AJ, AL, AN, AP, AR, AT, AV</b></td><td><b>AD, AG, AJ, AM, AP, AS, AV, AY, BB, BE, BH, BK</b></td><td>—</td><td>—</td><td><span class="tag">금액 일치</span></td></tr>
+      </tbody>
+    </table>
+    <p class="hint">진행중 과제와 재직자를 먼저 선별하되 currentemp에서 값이 "위촉연구원"인 행은 비교대상에서 제외합니다. contractsubject는 직번(G열)·과제번호(N열)·지급년도(X열)를 키로 병합합니다. 결과의 과제번호를 ingcontract F열 과제번호와 매칭하여 H열 과제명, O열 연구시작일자, Q열 연구종료일자를 결과에 추가합니다. 같은 키의 동일 월에 지급액이 여러 건이면 지급액 0원 행은 신청번호 비교에서 제외하고, 0원이 아닌 행 중 신청번호(D열)가 가장 큰 행의 해당 월 지급액을 최종금액으로 사용합니다. 월별 지급액은 Z·AB·AD·AF·AH·AJ·AL·AN·AP·AR·AT·AV 열만 사용하며, joinlist의 월별 예정액은 AD·AG·AJ·AM·AP·AS·AV·AY·BB·BE·BH·BK 열만 사용합니다. 검증 결과에서는 계약관리 지급액과 참여인력 예정액이 모두 0원인 행을 제외합니다.</p>
+  </section>
+
+  <section class="upload-grid">
+    <div class="upload-card"><div class="upload-head"><div class="xls">X</div><div><div class="upload-title">contractsubject</div><div class="upload-sub">연구원계약과제별현황</div></div></div><div class="drop"><div><div class="arrow">⇧</div><strong>파일 선택 또는 드래그 앤 드롭</strong><small>.xlsx, .xls 파일 · 첫 번째 시트 기준</small><br><button class="pick" data-pick="contract">파일 선택</button><input hidden type="file" id="contract" accept=".xlsx,.xls"></div></div><div class="file-status"><span id="contractName" class="filename">선택된 파일이 없습니다.</span></div></div>
+    <div class="upload-card"><div class="upload-head"><div class="xls">X</div><div><div class="upload-title">joinlist</div><div class="upload-sub">연구인력현황조회(월별인건비)</div></div></div><div class="drop"><div><div class="arrow">⇧</div><strong>파일 선택 또는 드래그 앤 드롭</strong><small>.xlsx, .xls 파일 · 첫 번째 시트 기준</small><br><button class="pick" data-pick="join">파일 선택</button><input hidden type="file" id="join" accept=".xlsx,.xls"></div></div><div class="file-status"><span id="joinName" class="filename">선택된 파일이 없습니다.</span></div></div>
+    <div class="upload-card"><div class="upload-head"><div class="xls">X</div><div><div class="upload-title">ingcontract</div><div class="upload-sub">진행중인 연차과제 현황</div></div></div><div class="drop"><div><div class="arrow">⇧</div><strong>파일 선택 또는 드래그 앤 드롭</strong><small>.xlsx, .xls 파일 · 첫 번째 시트 기준</small><br><button class="pick" data-pick="ing">파일 선택</button><input hidden type="file" id="ing" accept=".xlsx,.xls"></div></div><div class="file-status"><span id="ingName" class="filename">선택된 파일이 없습니다.</span></div></div>
+    <div class="upload-card"><div class="upload-head"><div class="xls">X</div><div><div class="upload-title">currentemp</div><div class="upload-sub">재직자 현황</div></div></div><div class="drop"><div><div class="arrow">⇧</div><strong>파일 선택 또는 드래그 앤 드롭</strong><small>.xlsx, .xls 파일 · 첫 번째 시트 기준</small><br><button class="pick" data-pick="emp">파일 선택</button><input hidden type="file" id="emp" accept=".xlsx,.xls"></div></div><div class="file-status"><span id="empName" class="filename">선택된 파일이 없습니다.</span></div></div>
+  </section>
+
+  <div class="center"><button id="runBtn" class="run" disabled>검증 시작 →</button></div>
+
+  <section class="card">
+    <div class="results-head">
+      <div><div class="eyebrow">VALIDATION RESULT</div><h2>검증 결과</h2></div>
+      <div class="actions"><button id="csvBtn" class="btn">CSV 다운로드</button><button id="xlsxBtn" class="btn">Excel 다운로드</button></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="ico">▤</div><div><div class="label">전체 비교 건수</div><div class="num" id="sTotal">0</div></div></div>
+      <div class="stat"><div class="ico">✓</div><div><div class="label">일치 건수</div><div class="num" id="sOk">0</div></div></div>
+      <div class="stat"><div class="ico">!</div><div><div class="label">금액 불일치</div><div class="num" id="sDiff">0</div></div></div>
+      <div class="stat"><div class="ico">−</div><div><div class="label">계약정보누락</div><div class="num" id="sMissingContract">0</div></div></div>
+      <div class="stat"><div class="ico">−</div><div><div class="label">참여인력미등록</div><div class="num" id="sMissingJoin">0</div></div></div>
+    </div>
+    <div class="table-wrap">
+      <table class="result">
+        <thead><tr><th>상태</th><th>직번</th><th>성명</th><th>과제번호</th><th>년도</th><th>불일치월</th><th>계약관리 지급액</th><th>참여인력 예정액</th><th>차액</th></tr></thead>
+        <tbody id="tbody"><tr><td class="empty" colspan="9">파일을 업로드한 뒤 검증을 시작하세요.</td></tr></tbody>
+      </table>
+    </div>
+    <div id="err" class="error"></div>
+  </section>
+</div>
+
+<script>
+const files = {contract:null, join:null, ing:null, emp:null};
+let results = [];
+
+const CFG = {
+  contract:{emp:6, app:3, name:4, project:13, year:23},
+  join:{emp:1, name:3, project:13, year:27},
+  ing:{project:5, projectName:7, researchStart:14, researchEnd:16},
+  emp:{emp:1}
+};
+
+function norm(v){
+  if(v===null||v===undefined) return "";
+  if(typeof v==="number" && Number.isFinite(v)) return String(v).trim();
+  return String(v).trim();
+}
+function num(v){
+  if(v===null||v===undefined||v==="") return 0;
+  if(typeof v==="number") return Number.isFinite(v)?v:0;
+  const s=String(v).replace(/,/g,"").replace(/[^\d.\-]/g,"");
+  const n=Number(s);
+  return Number.isFinite(n)?n:0;
+}
+function money(n){return Number(n||0).toLocaleString("ko-KR");}
+function key3(emp,project,year){return [norm(emp),norm(project),norm(year)].join("\u001f");}
+function formatDate(v){
+  if(v===null||v===undefined||v==="") return "";
+  if(typeof v==="number" && typeof XLSX!=="undefined" && XLSX.SSF?.parse_date_code){
+    const d=XLSX.SSF.parse_date_code(v);
+    if(d) return `${String(d.y).padStart(4,"0")}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`;
+  }
+  const s=String(v).trim();
+  const m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if(m) return `${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`;
+  return s;
+}
+
+async function readExcel(file){
+  const ab=await file.arrayBuffer();
+  const wb=XLSX.read(ab,{type:"array",cellDates:false});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:true});
+}
+
+function headerText(rows,c){
+  return [rows[0]?.[c],rows[1]?.[c],rows[2]?.[c]].map(norm).join(" ");
+}
+function detectMonthColumns(rows,type){
+  if(type==="contract") return [25,27,29,31,33,35,37,39,41,43,45,47];
+  if(type==="join") return [29,32,35,38,41,44,47,50,53,56,59,62];
+  return [];
+}
+
+function dataStart(rows){
+  for(let r=0;r<Math.min(8,rows.length);r++){
+    const filled=(rows[r]||[]).filter(v=>norm(v)!=="").length;
+    if(r>=1 && filled>=5) return r+1;
+  }
+  return 1;
+}
+
+function setFile(id,file){
+  files[id]=file;
+  const el=document.getElementById(id+"Name");
+  el.textContent=file?("✓ "+file.name+" ("+(file.size/1024).toFixed(1)+" KB)"):"선택된 파일이 없습니다.";
+  el.title=file?file.name:"";
+  document.getElementById("runBtn").disabled=!Object.values(files).every(Boolean);
+}
+document.querySelectorAll("[data-pick]").forEach(b=>{
+  b.addEventListener("click",()=>document.getElementById(b.dataset.pick).click());
+});
+["contract","join","ing","emp"].forEach(id=>{
+  const inp=document.getElementById(id);
+  inp.addEventListener("change",()=>setFile(id,inp.files[0]||null));
+  const drop=inp.closest(".drop");
+  ["dragenter","dragover"].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.style.background="#f2f7fb"}));
+  ["dragleave","drop"].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.style.background="#fbfcfd"}));
+  drop.addEventListener("drop",ev=>{const f=ev.dataTransfer.files[0];if(f)setFile(id,f)});
+});
+
+function filteredJoinRows(rows,activeProjects,currentEmps){
+  const start=dataStart(rows), out=[];
+  for(let r=start;r<rows.length;r++){
+    const row=rows[r]||[];
+    const emp=norm(row[CFG.join.emp]), project=norm(row[CFG.join.project]), year=norm(row[CFG.join.year]);
+    if(!emp||!project||!year) continue;
+    if(activeProjects.has(project)&&currentEmps.has(emp)) out.push(row);
+  }
+  return out;
+}
+
+function compareApplication(a,b){
+  a=norm(a); b=norm(b);
+  if(/^\d+$/.test(a)&&/^\d+$/.test(b)){
+    try{const A=BigInt(a),B=BigInt(b); return A===B?0:(A>B?1:-1)}catch(e){}
+  }
+  return a.localeCompare(b,"ko-KR",{numeric:true,sensitivity:"base"});
+}
+
+function buildAgg(rows,type,monthCols){
+  const cfg=CFG[type], map=new Map();
+  if(type==="contract"){
+    for(const row of rows){
+      const emp=norm(row[cfg.emp]), project=norm(row[cfg.project]), year=norm(row[cfg.year]);
+      if(!emp||!project||!year) continue;
+      const k=key3(emp,project,year);
+      if(!map.has(k)) map.set(k,{emp,project,year,name:norm(row[cfg.name]),monthCandidates:Array.from({length:12},()=>[])});
+      const obj=map.get(k);
+      if(!obj.name) obj.name=norm(row[cfg.name]);
+      const app=norm(row[cfg.app]);
+      for(let m=0;m<12;m++){
+        const raw=row[monthCols[m]];
+        if(norm(raw)==="") continue;
+        obj.monthCandidates[m].push({app,amount:num(raw)});
+      }
+    }
+    for(const obj of map.values()){
+      obj.months=obj.monthCandidates.map(cands=>{
+        if(!cands.length) return 0;
+        const nonZeroCandidates=cands.filter(c=>Math.abs(c.amount)>0.000001);
+        if(!nonZeroCandidates.length) return 0;
+        let maxApp=nonZeroCandidates[0].app;
+        for(const c of nonZeroCandidates){if(compareApplication(c.app,maxApp)>0) maxApp=c.app;}
+        const values=new Set(nonZeroCandidates.filter(c=>compareApplication(c.app,maxApp)===0).map(c=>c.amount));
+        return [...values].reduce((a,b)=>a+b,0);
+      });
+      delete obj.monthCandidates;
+    }
+    return map;
+  }
+
+  for(const row of rows){
+    const emp=norm(row[cfg.emp]), project=norm(row[cfg.project]), year=norm(row[cfg.year]);
+    if(!emp||!project||!year) continue;
+    const k=key3(emp,project,year);
+    if(!map.has(k)) map.set(k,{emp,project,year,name:norm(row[cfg.name]),monthSets:Array.from({length:12},()=>new Set())});
+    const obj=map.get(k);
+    if(!obj.name) obj.name=norm(row[cfg.name]);
+    for(let m=0;m<12;m++){
+      const amount=num(row[monthCols[m]]);
+      if(amount!==0) obj.monthSets[m].add(amount);
+    }
+  }
+  for(const obj of map.values()){
+    obj.months=obj.monthSets.map(set=>[...set].reduce((a,b)=>a+b,0));
+    delete obj.monthSets;
+  }
+  return map;
+}
+
+function statusRow(status,obj,month,ca,ja){
+  return {
+    상태:status, 직번:obj.emp||"", 성명:obj.name||"", 과제번호:obj.project||"", 년도:obj.year||"",
+    과제명:"", 연구시작일자:"", 연구종료일자:"",
+    불일치월:month?month+"월":"", "계약관리 지급액":ca||0, "참여인력 예정액":ja||0, 차액:(ca||0)-(ja||0)
+  };
+}
+
+function render(){
+  const tbody=document.getElementById("tbody");
+  tbody.innerHTML="";
+  if(!results.length){tbody.innerHTML='<tr><td class="empty" colspan="9">불일치 결과가 없습니다.</td></tr>';return}
+  for(const r of results){
+    const tr=document.createElement("tr");
+    const vals=[r.상태,r.직번,r.성명,r.과제번호,r.년도,r.불일치월,money(r["계약관리 지급액"]),money(r["참여인력 예정액"]),money(r.차액)];
+    vals.forEach((v,i)=>{const td=document.createElement("td"); if(i===0){const s=document.createElement("span");s.className="status-badge";s.textContent=v;td.appendChild(s)}else{td.textContent=v} if(i>=6)td.className="money";tr.appendChild(td)});
+    tbody.appendChild(tr);
+  }
+}
+function setStats(ok){
+  const counts={diff:0,mc:0,mj:0};
+  results.forEach(r=>{if(r.상태==="금액 불일치")counts.diff++;else if(r.상태==="계약정보누락")counts.mc++;else if(r.상태==="참여인력미등록")counts.mj++});
+  document.getElementById("sDiff").textContent=counts.diff.toLocaleString();
+  document.getElementById("sMissingContract").textContent=counts.mc.toLocaleString();
+  document.getElementById("sMissingJoin").textContent=counts.mj.toLocaleString();
+  document.getElementById("sOk").textContent=ok.toLocaleString();
+  document.getElementById("sTotal").textContent=(ok+results.length).toLocaleString();
+}
+
+document.getElementById("runBtn").addEventListener("click",async()=>{
+  const err=document.getElementById("err");err.style.display="none";
+  try{
+    if(typeof XLSX==="undefined") throw new Error("Excel 처리 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.");
+    const [contractRows,joinRows,ingRows,empRows]=await Promise.all([
+      readExcel(files.contract),readExcel(files.join),readExcel(files.ing),readExcel(files.emp)
+    ]);
+
+    const activeProjects=new Set();
+    const projectInfoMap=new Map();
+    for(let r=dataStart(ingRows);r<ingRows.length;r++){
+      const row=ingRows[r]||[];
+      const p=norm(row[CFG.ing.project]);
+      if(!p) continue;
+      activeProjects.add(p);
+      if(!projectInfoMap.has(p)){
+        projectInfoMap.set(p,{
+          과제명:norm(row[CFG.ing.projectName]),
+          연구시작일자:formatDate(row[CFG.ing.researchStart]),
+          연구종료일자:formatDate(row[CFG.ing.researchEnd])
+        });
+      }else{
+        const info=projectInfoMap.get(p);
+        if(!info.과제명) info.과제명=norm(row[CFG.ing.projectName]);
+        if(!info.연구시작일자) info.연구시작일자=formatDate(row[CFG.ing.researchStart]);
+        if(!info.연구종료일자) info.연구종료일자=formatDate(row[CFG.ing.researchEnd]);
+      }
+    }
+
+    const currentEmps=new Set();
+    for(let r=dataStart(empRows);r<empRows.length;r++){
+      const row=empRows[r]||[];
+      if(row.some(v=>norm(v)==="위촉연구원")) continue;
+      const e=norm(row[CFG.emp.emp]);
+      if(e) currentEmps.add(e);
+    }
+
+    const contractStart=dataStart(contractRows);
+    const contractFinal=[];
+    for(let r=contractStart;r<contractRows.length;r++){
+      const row=contractRows[r]||[];
+      const emp=norm(row[CFG.contract.emp]);
+      const project=norm(row[CFG.contract.project]);
+      const year=norm(row[CFG.contract.year]);
+      if(!emp||!project||!year) continue;
+      if(activeProjects.has(project)&&currentEmps.has(emp)) contractFinal.push(row);
+    }
+    const joinFinal=filteredJoinRows(joinRows,activeProjects,currentEmps);
+
+    const cMonths=detectMonthColumns(contractRows,"contract");
+    const jMonths=detectMonthColumns(joinRows,"join");
+    const cMap=buildAgg(contractFinal,"contract",cMonths);
+    const jMap=buildAgg(joinFinal,"join",jMonths);
+
+    results=[]; let ok=0;
+    const allKeys=new Set([...cMap.keys(),...jMap.keys()]);
+    for(const k of allKeys){
+      const c=cMap.get(k), j=jMap.get(k);
+      if(c&&!j){
+        for(let m=0;m<12;m++) if(c.months[m]!==0) results.push(statusRow("참여인력미등록",c,m+1,c.months[m],0));
+        continue;
+      }
+      if(!c&&j){
+        for(let m=0;m<12;m++) if(j.months[m]!==0) results.push(statusRow("계약정보누락",j,m+1,0,j.months[m]));
+        continue;
+      }
+      let hasDiff=false;
+      for(let m=0;m<12;m++){
+        const ca=c.months[m]||0, ja=j.months[m]||0;
+        if(Math.abs(ca-ja)>0.000001){
+          const base={...j,name:j.name||c.name};
+          results.push(statusRow("금액 불일치",base,m+1,ca,ja));
+          hasDiff=true;
+        }
+      }
+      if(!hasDiff) ok++;
+    }
+
+    results=results.filter(r=>
+      Math.abs(Number(r["계약관리 지급액"]||0))>0.000001 ||
+      Math.abs(Number(r["참여인력 예정액"]||0))>0.000001
+    );
+
+    results.forEach(r=>{
+      const info=projectInfoMap.get(norm(r.과제번호));
+      if(!info) return;
+      r.과제명=info.과제명||"";
+      r.연구시작일자=info.연구시작일자||"";
+      r.연구종료일자=info.연구종료일자||"";
+    });
+
+    results.sort((a,b)=>
+      String(a.직번).localeCompare(String(b.직번),"ko-KR",{numeric:true}) ||
+      String(a.과제번호).localeCompare(String(b.과제번호),"ko-KR",{numeric:true}) ||
+      String(a.년도).localeCompare(String(b.년도),"ko-KR",{numeric:true}) ||
+      parseInt(a.불일치월||"0")-parseInt(b.불일치월||"0")
+    );
+    setStats(ok); render();
+  }catch(e){
+    err.textContent="검증 중 오류: "+(e?.message||e);
+    err.style.display="block";
+  }
+});
+
+function exportRows(){
+  return results.map(r=>({
+    상태:r.상태,
+    직번:r.직번,
+    성명:r.성명,
+    과제번호:r.과제번호,
+    과제명:r.과제명||"",
+    연구시작일자:r.연구시작일자||"",
+    연구종료일자:r.연구종료일자||"",
+    년도:r.년도,
+    불일치월:r.불일치월,
+    "계약관리 지급액":r["계약관리 지급액"],
+    "참여인력 예정액":r["참여인력 예정액"],
+    차액:r.차액
+  }));
+}
+document.getElementById("xlsxBtn").addEventListener("click",()=>{
+  if(typeof XLSX==="undefined") return alert("Excel 처리 라이브러리를 불러오지 못했습니다.");
+  const ws=XLSX.utils.json_to_sheet(exportRows());
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"검증결과");
+  XLSX.writeFile(wb,"연구인력_월별인건비_검증결과.xlsx");
+});
+document.getElementById("csvBtn").addEventListener("click",()=>{
+  if(typeof XLSX==="undefined") return alert("Excel 처리 라이브러리를 불러오지 못했습니다.");
+  const ws=XLSX.utils.json_to_sheet(exportRows());
+  const csv="\ufeff"+XLSX.utils.sheet_to_csv(ws);
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  a.download="연구인력_월별인건비_검증결과.csv"; a.click(); URL.revokeObjectURL(a.href);
+});
+</script>
+</body>
+</html>
