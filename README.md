@@ -51,6 +51,28 @@
 
 `https://mycodehive.github.io/works/excel-merge/`
 
+### 3. image-optimizer-pro
+
+이미지 변환, 압축, 리사이즈와 목표 용량 최적화를 브라우저에서 처리하는 이미지 업무 도구입니다.
+
+주요 기능:
+
+- JPG, PNG, WebP 출력 지원
+- 원본 크기 유지, 비율 축소, 최대 가로폭, 사용자 지정 크기 지원
+- JPG/WebP 품질 압축 지원
+- 파일당 목표 용량을 기준으로 자동 압축 및 해상도 조정
+- 원본보다 큰 이미지 생성을 막는 확대 방지 옵션
+- 투명 이미지를 JPG로 변환할 때 흰색 배경 적용 옵션
+- 여러 이미지 일괄 최적화
+- 개별 결과 파일 다운로드 및 전체 결과 ZIP 다운로드
+- 원본 용량과 최적화 후 절감 용량 확인
+- 모든 이미지 처리는 브라우저에서 수행하며 서버 업로드·저장 없음
+- 애니메이션 GIF는 첫 프레임 기준 정지 이미지로 처리되며 HEIC/HEIF는 브라우저 지원 여부에 따라 제한될 수 있음
+
+실행 주소:
+
+`https://mycodehive.github.io/works/image-optimizer-pro/`
+
 ## 폴더 구조
 
 ```text
@@ -60,7 +82,9 @@ works/
 ├── Cross-verification-of-labor-cost-payment-plan/
 │   ├── index.html
 │   └── xlsx.full.min.js
-└── excel-merge/
+├── excel-merge/
+│   └── index.html
+└── image-optimizer-pro/
     └── index.html
 ```
 
