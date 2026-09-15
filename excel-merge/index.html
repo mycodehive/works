@@ -15,7 +15,7 @@
   <div class="eyebrow">EXCEL MERGE</div>
   <h1>같은 레이아웃 엑셀 병합</h1>
   <p>동일한 구조의 여러 Excel 파일을 하나의 통합 파일로 합칩니다. 첫 번째 파일의 헤더와 레이아웃을 기준으로 유지하고, 이후 파일의 데이터 행을 순서대로 이어붙입니다.</p>
-  <div class="chips"><span class="chip">.xls 지원</span><span class="chip">.xlsx 지원</span><span class="chip">결과는 .xlsx</span><span class="chip">브라우저 내부 처리</span><span class="chip">서버 저장 없음</span></div>
+  <div class="chips"><span class="chip">.xls 지원</span><span class="chip">.xlsx 지원</span><span class="chip">결과는 .xlsx</span><span class="chip">브라우저 내부 처리</span><span class="chip">서버 저장 없음</span><span class="chip">0 시작 열 자동 텍스트</span></div>
 </section>
 
 <section class="card">
@@ -40,7 +40,7 @@
       <input id="outputName" value="merged.xlsx">
     </div>
   </div>
-  <div class="note">헤더가 1줄, 2줄 또는 여러 줄인 경우 실제 헤더 행 수를 입력하세요. 첫 번째 파일의 헤더 영역과 셀 병합, 열 너비, 행 높이, 셀 스타일을 기준으로 결과 파일을 구성합니다. 두 번째 파일부터는 입력한 헤더 행 수만큼 제외하고 데이터 행만 이어붙입니다.</div>
+  <div class="note">헤더가 1줄, 2줄 또는 여러 줄인 경우 실제 헤더 행 수를 입력하세요. 첫 번째 파일의 헤더 영역과 셀 병합, 열 너비, 행 높이, 셀 스타일을 기준으로 결과 파일을 구성합니다. 두 번째 파일부터는 입력한 헤더 행 수만큼 제외하고 데이터 행만 이어붙입니다. 또한 데이터 영역에서 값이 0으로 시작하는 문자열이 하나라도 발견된 열은 해당 열 전체를 Excel의 텍스트 형식으로 저장하여 앞자리 0이 유지되도록 합니다.</div>
 </section>
 
 <section class="card privacy">
@@ -121,6 +121,37 @@ function copyMergesForData(sourceWs,targetWs,sourceDataStart,targetStart,sourceL
   }
 }
 function ensureRef(ws,lastRow,lastCol){ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:lastRow,c:lastCol}});}
+function isLeadingZeroValue(cell){
+  if(!cell||cell.v===undefined||cell.v===null) return false;
+  if(cell.t==='s'||cell.t==='str'||typeof cell.v==='string'){
+    const s=String(cell.v).trim();
+    return /^0\d+/.test(s);
+  }
+  return false;
+}
+function detectLeadingZeroColumns(ws,dataStart,lastRow,lastCol){
+  const cols=new Set();
+  for(let r=dataStart;r<=lastRow;r++){
+    for(let c=0;c<=lastCol;c++){
+      if(isLeadingZeroValue(ws[cellAddr(r,c)])) cols.add(c);
+    }
+  }
+  return cols;
+}
+function applyTextFormatToColumns(ws,cols,dataStart,lastRow){
+  for(const c of cols){
+    for(let r=dataStart;r<=lastRow;r++){
+      const addr=cellAddr(r,c);
+      const cell=ws[addr];
+      if(!cell||cell.v===undefined||cell.v===null||String(cell.v)==='') continue;
+      cell.t='s';
+      cell.v=String(cell.v);
+      cell.z='@';
+      cell.s=cell.s||{};
+      cell.s.numFmt='@';
+    }
+  }
+}
 
 async function readWorkbook(file){
   const buf=await file.arrayBuffer();
@@ -145,6 +176,7 @@ mergeBtn.onclick=async()=>{
     const baseRange=decodeRange(baseWs);if(!baseRange)throw new Error('첫 번째 파일에 데이터가 없습니다.');
     let writeRow=getLastDataRow(baseWs,baseRange)+1;
     let lastCol=baseRange.e.c;
+    const dataStartBase=baseRange.s.r+headerRows;
 
     for(let i=1;i<books.length;i++){
       const wb=books[i];if(!wb.SheetNames.length)continue;
@@ -159,7 +191,11 @@ mergeBtn.onclick=async()=>{
       lastCol=Math.max(lastCol,range.e.c);
     }
 
-    ensureRef(baseWs,Math.max(writeRow-1,baseRange.e.r),lastCol);
+    const finalLastRow=Math.max(writeRow-1,baseRange.e.r);
+    ensureRef(baseWs,finalLastRow,lastCol);
+    const textCols=detectLeadingZeroColumns(baseWs,dataStartBase,finalLastRow,lastCol);
+    applyTextFormatToColumns(baseWs,textCols,dataStartBase,finalLastRow);
+
     XLSX.utils.book_append_sheet(outBook,baseWs,baseSheetName.slice(0,31));
 
     // 첫 번째 파일에 시트가 여러 개인 경우, 부가 시트는 그대로 보존합니다.
@@ -170,7 +206,8 @@ mergeBtn.onclick=async()=>{
     let name=(document.getElementById('outputName').value||'merged.xlsx').trim();
     if(!/\.xlsx$/i.test(name)) name=name.replace(/\.(xls|xlsx)$/i,'')+'.xlsx';
     XLSX.writeFile(outBook,name,{bookType:'xlsx',cellStyles:true,compression:true});
-    setStatus('ok',`병합 완료: ${selected.length}개 파일을 ${name}으로 다운로드했습니다.`);
+    const textMsg=textCols.size?` · 텍스트 처리 열 ${textCols.size}개`:'';
+    setStatus('ok',`병합 완료: ${selected.length}개 파일을 ${name}으로 다운로드했습니다.${textMsg}`);
   }catch(e){setStatus('err','병합 실패: '+(e?.message||e));}
   finally{mergeBtn.disabled=selected.length<1;mergeBtn.textContent='병합 후 XLSX 다운로드';}
 };
