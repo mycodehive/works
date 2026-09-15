@@ -23,44 +23,21 @@
 ## Applications
 
 ### 1. Cross-verification-of-labor-cost-payment-plan
-
-연구인력 월별 인건비 지급계획과 계약관리 데이터를 교차 검증하는 웹 도구입니다.
-
-주요 기능:
-- `contractsubject`, `joinlist`, `ingcontract`, `currentemp` Excel 업로드
-- 진행중 과제 및 재직자 기준 필터링
-- 직번·과제번호·지급년도 기준 교차 검증
-- 월별 지급액/예정액 불일치 확인
-- 계약정보 누락 및 참여인력 미등록 확인
-- 검증 결과 CSV / Excel 다운로드
-
-실행 주소: `https://mycodehive.github.io/works/Cross-verification-of-labor-cost-payment-plan/`
+- 연구인력 월별 인건비 지급계획과 계약관리 데이터 교차 검증
+- Excel 업로드, 진행중 과제·재직자 필터링, 월별 금액 비교, CSV/Excel 출력
+- `https://mycodehive.github.io/works/Cross-verification-of-labor-cost-payment-plan/`
 
 ### 2. excel-merge
-
-같은 레이아웃을 가진 여러 Excel 파일을 브라우저에서 하나의 XLSX 파일로 병합하는 도구입니다.
-
-주요 기능:
-- `.xls`, `.xlsx` 파일 병합
-- 여러 줄 헤더 및 셀 스타일·병합 셀 최대한 보존
-- `0`으로 시작하는 문자열 열의 앞자리 0 보존
-- 사용자 지정 다운로드 파일명 + 자동 `.xlsx`
-- 서버 업로드·저장 없음
-
-실행 주소: `https://mycodehive.github.io/works/excel-merge/`
+- 같은 레이아웃의 `.xls`, `.xlsx` 파일 병합
+- 여러 줄 헤더, 셀 스타일·병합 셀 보존, 앞자리 0 텍스트 처리
+- 사용자 지정 파일명으로 `.xlsx` 다운로드, 서버 저장 없음
+- `https://mycodehive.github.io/works/excel-merge/`
 
 ### 3. image-optimizer-pro
-
-이미지를 브라우저에서 변환·리사이즈·압축하고 결과를 내려받는 이미지 최적화 도구입니다.
-
-주요 기능:
-- JPG / PNG / WebP 변환
-- 이미지 리사이즈 및 품질 압축
-- 목표 파일 용량 기준 압축
+- JPG / PNG / WebP 변환, 리사이즈, 품질·목표 용량 압축
 - 개별 다운로드 및 ZIP 일괄 다운로드
 - 서버 업로드·저장 없이 브라우저 내부 처리
-
-실행 주소: `https://mycodehive.github.io/works/image-optimizer-pro/`
+- `https://mycodehive.github.io/works/image-optimizer-pro/`
 
 ## 폴더 구조
 
